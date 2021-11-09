@@ -6,7 +6,7 @@ const tor = tor_axios.torSetup({
     port: 9050,
     path: '',
     controlPort: '9051',
-    contorlPassword: 'giraffe',
+    controlPassword: 'giraffe',
 });
 
 const url = "http://api.ipify.org";
