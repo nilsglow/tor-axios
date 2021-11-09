@@ -5,6 +5,8 @@ const _fs = require('fs');
 const _path = require('path');
 const SocksProxyAgent = require('socks-proxy-agent');
 
+const NEWNYM_WAIT = 10000
+
 let torConfig = {
     ip: '127.0.0.1',
     port: '9050',
@@ -12,6 +14,8 @@ let torConfig = {
     controlPort: '9051',
     controlPassword: 'giraffe',
 }
+
+let lastNewnymTimestamp = Date.now()
 
 const httpAgent = function() {
     return new SocksProxyAgent(`socks5h://${torConfig.ip}:${torConfig.port}`);
@@ -74,23 +78,33 @@ function torNewSession() {
     ];
     
     return new Promise(function (resolve, reject) {
-        torIPC(commands).then(function(data) {
+        // check timestamp and setTimeout
+        let wait = Math.max(0, lastNewnymTimestamp + NEWNYM_WAIT - Date.now())
+        setTimeout(() => {
+
+          torIPC(commands).then(function(data) {
+            // XXX remember timestamp
+            lastNewnymTimestamp = Date.now()
+
             let lines = data.split( os.EOL ).slice( 0, -1 );
             let success = lines.every( function ( val, ind, arr ) {
-                // each response from the ControlPort should start with 250 (OK STATUS)
-                return val.length <= 0 || val.indexOf( '250' ) >= 0
+              // each response from the ControlPort should start with 250 (OK STATUS)
+              return val.length <= 0 || val.indexOf( '250' ) >= 0
             });
 
             if ( !success ) {
-                let err = new Error( 'Error communicating with Tor ControlPort\n' + data )
-                reject(err);
+              let err = new Error( 'Error communicating with Tor ControlPort\n' + data )
+              reject(err);
             }
 
             resolve('Tor session successfully renewed!!');
             //resolve(data);
-        }).catch(function (err) {
+          }).catch(function (err) {
             reject(err);
-        });
+          });
+
+        }, wait)
+        console.log(`waiting ${wait}ms...`) // XXX
     });
 }
 
